@@ -83,14 +83,14 @@
     /* 檔名：放在剩餘數量下方（不顯示副檔名） */
     .filename{
       position:absolute;
-      top: 96px;                /* HUD 正下方 */
+      top: 96px;
       left: 20px;
       max-width: calc(100% - 40px);
 
       padding: 14px 20px;
       border-radius: 14px;
 
-      font-size: 64px;          /* 與剩餘數量同級 */
+      font-size: 64px;
       font-weight: 900;
       letter-spacing: 2px;
 
@@ -102,7 +102,7 @@
         0 0 22px rgba(0,229,255,.6),
         3px 3px 6px rgba(0,0,0,.95);
 
-      opacity: 0;               /* 預設隱藏 */
+      opacity: 0;
       transition: opacity .12s ease;
       pointer-events:none;
 
@@ -132,7 +132,7 @@
     <div class="hud" id="hud">剩餘：10</div>
     <div class="filename" id="filename"></div>
 
-    <img id="img" src="1.png" alt="quiz"/>
+    <img id="img" src="" alt="quiz"/>
 
     <div class="status" id="status">空白鍵：停 → 顯示檔名 → 再轉（抽完可點右側回看）</div>
   </div>
@@ -140,35 +140,39 @@
   <div class="side" id="picked"></div>
 
 <script>
-// 圖片預載（GitHub Pages 必備）
+  // 圖片預載（GitHub Pages 必備）
   function preloadImages(list, callback) {
     let loaded = 0;
     const total = list.length;
+
+    if (total === 0) { callback(); return; }
 
     list.forEach(src => {
       const img = new Image();
       img.onload = img.onerror = () => {
         loaded++;
-        if (loaded === total) {
-          callback();
-        }
+        if (loaded === total) callback();
       };
       img.src = src;
     });
   }
-  // 10 張 PNG（放同資料夾；若你用選資料夾版，這裡會改成讀入）
-let pool = [
-  "刈包.png",
-  "北京烤鴨.png",
-  "皮蛋豆腐.png",
-  "波羅麵包.png",
-  "青椒肉絲.png",
-  "紅酒燉牛肉.png",
-  "紫菜蛋花湯.png",
-  "鳳梨蝦球.png",
-  "螞蟻上樹.png",
-  "鹽酥雞.png"
-];
+
+  // 10 張圖片（同資料夾）
+  let pool = [
+    "刈包.png",
+    "北京烤鴨.png",
+    "皮蛋豆腐.png",
+    "波羅麵包.png",
+    "青椒肉絲.png",
+    "紅酒燉牛肉.png",
+    "紫菜蛋花湯.png",
+    "鳳梨蝦球.png",
+    "螞蟻上樹.png",
+    "鹽酥雞.png"
+  ];
+
+  const MASTER_URL = "https://d03280112-sketch.github.io/ALL/";
+
   const mainEl = document.getElementById("main");
   const imgEl = document.getElementById("img");
   const hudEl = document.getElementById("hud");
@@ -187,7 +191,7 @@ let pool = [
   const STATE = { RUN:"RUN", STOP:"STOP", REVEAL:"REVEAL" };
   let state = STATE.RUN;
 
-  // 記錄「目前停住的那張」(在扣除前會用到)
+  // 記錄「目前停住的那張」
   let lockedSrc = null;
 
   function updateHud(){
@@ -199,7 +203,7 @@ let pool = [
     filenameEl.textContent = "";
   }
 
-  // ✅ 移除副檔名（.png/.jpg/...）
+  // 移除副檔名
   function stripExtension(filename){
     return filename.replace(/\.[^/.]+$/, "");
   }
@@ -236,8 +240,6 @@ let pool = [
   function revealOnly(){
     if (state !== STATE.STOP || !lockedSrc) return;
     state = STATE.REVEAL;
-
-    // ✅ 顯示檔名但不顯示副檔名
     showFilename(stripExtension(lockedSrc));
   }
 
@@ -265,84 +267,106 @@ let pool = [
     }
   }
 
- function commitRemoveAndAddThumb(){
-  if (lockedSrc == null) return;
+  function ensureBackButton(){
+    if (document.getElementById("back-to-master")) return;
 
-  // 右側新增縮圖
-  const thumb = document.createElement("img");
-  thumb.src = lockedSrc;
-  thumb.className = "thumb";
-  thumb.dataset.src = lockedSrc;
-  thumb.dataset.name = lockedSrc; // 用來顯示檔名（再 stripExtension）
+    const backBtn = document.createElement("button");
+    backBtn.id = "back-to-master";
+    backBtn.textContent = "返回主控台";
 
-  // 抽完後可回看
-  thumb.addEventListener("click", () => {
-    if (!reviewMode) return;
-    selectThumb(thumb);
-    imgEl.src = thumb.dataset.src;
-    showFilename(stripExtension(thumb.dataset.name));
-  });
+    backBtn.style.position = "fixed";
+    backBtn.style.left = "24px";
+    backBtn.style.bottom = "24px";
+    backBtn.style.zIndex = "9999";
 
-  pickedEl.appendChild(thumb);
+    backBtn.style.fontSize = "28px";
+    backBtn.style.fontWeight = "900";
+    backBtn.style.padding = "18px 28px";
+    backBtn.style.borderRadius = "18px";
+    backBtn.style.border = "0";
+    backBtn.style.cursor = "pointer";
 
-  // 從 pool 移除 lockedSrc
-  const idx = pool.indexOf(lockedSrc);
-  if (idx !== -1) pool.splice(idx, 1);
+    backBtn.style.background = "#FFD400";
+    backBtn.style.color = "#000";
+    backBtn.style.boxShadow = "0 0 20px rgba(255,212,0,0.6)";
 
-  updateHud();
-  hideFilename();
-  lockedSrc = null;
+    backBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      backBtn.blur();
+      window.location.href = MASTER_URL;
+    });
 
-  // ✅ 抽完：進回看模式 + 左下角返回主控台按鈕
-  if (pool.length === 0) {
-    enterReviewMode();
+    document.body.appendChild(backBtn);
+  }
 
-    const MASTER_URL = "https://d03280112-sketch.github.io/ALL/";
+  function commitRemoveAndAddThumb(){
+    if (lockedSrc == null) return;
 
-    if (!document.getElementById("back-to-master")) {
-      const backBtn = document.createElement("button");
-      backBtn.id = "back-to-master";
-      backBtn.textContent = "返回主控台";
+    // 右側新增縮圖
+    const thumb = document.createElement("img");
+    thumb.src = lockedSrc;
+    thumb.className = "thumb";
+    thumb.dataset.src = lockedSrc;
+    thumb.dataset.name = lockedSrc;
 
-      backBtn.style.position = "fixed";
-      backBtn.style.left = "24px";
-      backBtn.style.bottom = "24px";
-      backBtn.style.zIndex = "9999";
+    // 抽完後可回看
+    thumb.addEventListener("click", () => {
+      if (!reviewMode) return;
+      selectThumb(thumb);
+      imgEl.src = thumb.dataset.src;
+      showFilename(stripExtension(thumb.dataset.name));
+    });
 
-      backBtn.style.fontSize = "28px";
-      backBtn.style.fontWeight = "900";
-      backBtn.style.padding = "18px 28px";
-      backBtn.style.borderRadius = "18px";
-      backBtn.style.border = "0";
-      backBtn.style.cursor = "pointer";
+    pickedEl.appendChild(thumb);
 
-      backBtn.style.background = "#FFD400";
-      backBtn.style.color = "#000";
-      backBtn.style.boxShadow = "0 0 20px rgba(255,212,0,0.6)";
+    // 從 pool 移除 lockedSrc
+    const idx = pool.indexOf(lockedSrc);
+    if (idx !== -1) pool.splice(idx, 1);
 
-      backBtn.addEventListener("click", (e) => {
-        e.stopPropagation(); // ✅ 避免點按鈕也觸發你全頁 click 的 onSpace
-        window.location.href = MASTER_URL;
-      });
+    updateHud();
+    hideFilename();
+    lockedSrc = null;
 
-      document.body.appendChild(backBtn);
+    if (pool.length === 0) {
+      enterReviewMode();
+      ensureBackButton();
     }
   }
-}
-  // 初始
-updateHud();
 
-preloadImages(pool, () => {
-  showRandom();
-  start();
-});
+  // ✅ 空白鍵三段式
+  function onSpace(){
+    if (reviewMode) return;
+    if (pool.length === 0) return;
 
-  document.addEventListener("keydown", (e) => {
-    if (e.code === "Space") {
-      e.preventDefault();
-      onSpace();
+    if (state === STATE.RUN) {
+      stopOnly();
+    } else if (state === STATE.STOP) {
+      revealOnly();
+    } else if (state === STATE.REVEAL) {
+      commitRemoveAndAddThumb();
+      start();
     }
+  }
+
+  // 初始
+  updateHud();
+
+  preloadImages(pool, () => {
+    showRandom();
+    start();
   });
+
+  // ✅ 空白鍵：最穩版本（避免被瀏覽器/焦點吃掉）
+  window.addEventListener("keydown", (e) => {
+    const isSpace = (e.code === "Space") || (e.key === " ");
+    if (!isSpace) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    onSpace();
+  }, { capture: true });
 
   // 點一下主畫面也做同樣循環（可選）
   document.addEventListener("click", () => {
@@ -352,7 +376,3 @@ preloadImages(pool, () => {
 
 </body>
 </html>
-
-
-
-
